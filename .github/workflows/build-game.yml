@@ -1,5 +1,56 @@
 name: "Build Godot Project (with GDExtension)"
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: |
+          Select build type:
+          - release_only: Compiles only release builds used for exported games (fastest).
+          - debug: Compiles debug builds that are loaded by the Godot editor, only used for development and testing.
+          - both: Compiles debug builds as well as release builds.
+        required: true
+        type: choice
+        options:
+          - release_only
+          - debug
+          - both
+        default: release_only
+      precision:
+        description: |
+          Select float precision for floating-point calculations in the GDExtension:
+          - single: Uses 32-bit floats (recommended for standard Godot builds).
+          - double: Uses 64-bit floats (requires float=64 Godot builds).
+          - both: Builds both single and double precision versions.
+        required: true
+        type: choice
+        options:
+          - single
+          - double
+          - both
+        default: single
+      lto:
+        description: |
+          Select LTO (Link-Time Optimization) for release builds only:
+          - none: No optimization.
+          - auto: Optimize for smaller, faster binaries.
+        required: true
+        type: choice
+        options:
+          - none
+          - auto
+        default: auto
+      use_cache:
+        description: |
+          Use Cache: Whether to use caching for the build process.
+        required: false
+        type: boolean
+        default: true
+      create_release:
+        description: |
+          Create an immutable GitHub Release tagged as <branch>-<shortsha>.
+        required: false
+        type: boolean
+        default: false
 
 # NOTE: If your `project.godot` is at the repository root, set `PROJECT_PATH` below to ".".
 
@@ -7,16 +58,17 @@ env:
   GODOT_VERSION: 4.5.1
   EXPORT_NAME: AIGD
   PROJECT_PATH: test_project
+  BUILD_TYPE: ${{ github.event.inputs.build_type }}
 
 jobs:
   build-plugin:
     name: Build GDExtension
     uses: ./.github/workflows/build-plugin.yml
     with:
-      build_type: release_only
-      precision: single
-      lto: auto
-      use_cache: true
+      build_type: ${{ github.event.inputs.build_type }}
+      precision: ${{ github.event.inputs.precision }}
+      lto: ${{ github.event.inputs.lto }}
+      use_cache: ${{ github.event.inputs.use_cache }}
     secrets: inherit
 
   export-windows:
@@ -47,17 +99,32 @@ jobs:
           mkdir -v -p ~/.config/
           mv /root/.config/godot ~/.config/godot
           mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-      - name: Windows Build
+      - name: Windows Build (Release)
+        if: ${{ env.BUILD_TYPE != 'debug' }}
         run: |
-          mkdir -v -p build/windows
+          mkdir -v -p build/windows_release
           EXPORT_DIR="$(readlink -f build)"
           cd $PROJECT_PATH
-          godot --headless --verbose --export-release "Windows Desktop" "$EXPORT_DIR/windows/$EXPORT_NAME.exe"
-      - name: Upload Artifact
+          godot --headless --verbose --export-release "Windows Desktop" "$EXPORT_DIR/windows_release/${EXPORT_NAME}_release.exe"
+      - name: Windows Build (Debug)
+        if: ${{ env.BUILD_TYPE != 'release_only' }}
+        run: |
+          mkdir -v -p build/windows_debug
+          EXPORT_DIR="$(readlink -f build)"
+          cd $PROJECT_PATH
+          godot --headless --verbose --export-debug "Windows Desktop" "$EXPORT_DIR/windows_debug/${EXPORT_NAME}_debug.exe"
+      - name: Upload Windows Release Artifact
+        if: ${{ env.BUILD_TYPE != 'debug' }}
         uses: actions/upload-artifact@v4
         with:
-          name: windows
-          path: build/windows
+          name: windows_release
+          path: build/windows_release
+      - name: Upload Windows Debug Artifact
+        if: ${{ env.BUILD_TYPE != 'release_only' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows_debug
+          path: build/windows_debug
 
   export-linux:
     name: Linux Export
@@ -85,17 +152,32 @@ jobs:
         run: |
           mkdir -v -p ~/.local/share/godot/export_templates/
           mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-      - name: Linux Build
+      - name: Linux Build (Release)
+        if: ${{ env.BUILD_TYPE != 'debug' }}
         run: |
-          mkdir -v -p build/linux
+          mkdir -v -p build/linux_release
           EXPORT_DIR="$(readlink -f build)"
           cd $PROJECT_PATH
-          godot --headless --verbose --export-release "Linux" "$EXPORT_DIR/linux/$EXPORT_NAME.x86_64"
-      - name: Upload Artifact
+          godot --headless --verbose --export-release "Linux" "$EXPORT_DIR/linux_release/${EXPORT_NAME}_release.x86_64"
+      - name: Linux Build (Debug)
+        if: ${{ env.BUILD_TYPE != 'release_only' }}
+        run: |
+          mkdir -v -p build/linux_debug
+          EXPORT_DIR="$(readlink -f build)"
+          cd $PROJECT_PATH
+          godot --headless --verbose --export-debug "Linux" "$EXPORT_DIR/linux_debug/${EXPORT_NAME}_debug.x86_64"
+      - name: Upload Linux Release Artifact
+        if: ${{ env.BUILD_TYPE != 'debug' }}
         uses: actions/upload-artifact@v4
         with:
-          name: linux
-          path: build/linux
+          name: linux_release
+          path: build/linux_release
+      - name: Upload Linux Debug Artifact
+        if: ${{ env.BUILD_TYPE != 'release_only' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux_debug
+          path: build/linux_debug
 
   export-mac:
     name: Mac Export
@@ -123,14 +205,94 @@ jobs:
         run: |
           mkdir -v -p ~/.local/share/godot/export_templates/
           mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-      - name: Mac Build
+      - name: Mac Build (Release)
+        if: ${{ env.BUILD_TYPE != 'debug' }}
         run: |
-          mkdir -v -p build/mac
+          mkdir -v -p build/mac_release
           EXPORT_DIR="$(readlink -f build)"
           cd $PROJECT_PATH
-          godot --headless --verbose --export-release "macOS" "$EXPORT_DIR/mac/$EXPORT_NAME.zip"
-      - name: Upload Artifact
+          godot --headless --verbose --export-release "macOS" "$EXPORT_DIR/mac_release/${EXPORT_NAME}_release.zip"
+      - name: Mac Build (Debug)
+        if: ${{ env.BUILD_TYPE != 'release_only' }}
+        run: |
+          mkdir -v -p build/mac_debug
+          EXPORT_DIR="$(readlink -f build)"
+          cd $PROJECT_PATH
+          godot --headless --verbose --export-debug "macOS" "$EXPORT_DIR/mac_debug/${EXPORT_NAME}_debug.zip"
+      - name: Upload Mac Release Artifact
+        if: ${{ env.BUILD_TYPE != 'debug' }}
         uses: actions/upload-artifact@v4
         with:
-          name: mac
-          path: build/mac
+          name: mac_release
+          path: build/mac_release
+      - name: Upload Mac Debug Artifact
+        if: ${{ env.BUILD_TYPE != 'release_only' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac_debug
+          path: build/mac_debug
+
+  release:
+    name: Create Immutable Release
+    needs: [export-windows, export-linux, export-mac]
+    if: ${{ github.event.inputs.create_release == 'true' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download windows release artifact
+        if: ${{ env.BUILD_TYPE != 'debug' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: windows_release
+          path: release_artifacts/windows_release
+      - name: Download windows debug artifact
+        if: ${{ env.BUILD_TYPE != 'release_only' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: windows_debug
+          path: release_artifacts/windows_debug
+      - name: Download linux release artifact
+        if: ${{ env.BUILD_TYPE != 'debug' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: linux_release
+          path: release_artifacts/linux_release
+      - name: Download linux debug artifact
+        if: ${{ env.BUILD_TYPE != 'release_only' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: linux_debug
+          path: release_artifacts/linux_debug
+      - name: Download mac release artifact
+        if: ${{ env.BUILD_TYPE != 'debug' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: mac_release
+          path: release_artifacts/mac_release
+      - name: Download mac debug artifact
+        if: ${{ env.BUILD_TYPE != 'release_only' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: mac_debug
+          path: release_artifacts/mac_debug
+
+      - name: Compute release tag
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          SAFE_REF="${GITHUB_REF_NAME//\//-}"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAG="${SAFE_REF}-${SHORT_SHA}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            release_artifacts/**
