@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build GDExtension",
+			"detail": "Build GDExtension using scons build system.",
+			"type": "shell",
+			"command": "scons compiledb=yes",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		}
+	]
+}

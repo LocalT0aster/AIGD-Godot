@@ -1,0 +1,181 @@
+name: "Build Godot Project (with GDExtension)"
+on: workflow_dispatch
+
+# NOTE: If your `project.godot` is at the repository root, set `PROJECT_PATH` below to ".".
+
+env:
+  GODOT_VERSION: 4.5.1
+  EXPORT_NAME: AIGD
+  PROJECT_PATH: test_project
+
+jobs:
+  build-plugin:
+    name: Build GDExtension
+    uses: ./.github/workflows/build-plugin.yml
+    with:
+      build_type: full_plugin_compilation
+      precision: single
+      lto: auto
+      use_cache: true
+    secrets: inherit
+
+  export-windows:
+    name: Windows Export
+    needs: build-plugin
+    runs-on: ubuntu-24.04 # Use 24.04 with godot 4
+    container:
+      image: barichello/godot-ci:4.5.1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Download GDExtension
+        uses: actions/download-artifact@v4
+        with:
+          name: finished_unzip_me
+          path: ${{ github.workspace }}/_plugin_artifact
+      - name: Install GDExtension into project
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLUGIN_ARTIFACT_DIR="${{ github.workspace }}/_plugin_artifact"
+          PLUGIN_EXTRACT_DIR="${{ github.workspace }}/_plugin_unzipped"
+          mkdir -p "$PLUGIN_EXTRACT_DIR"
+
+          if command -v python3 >/dev/null 2>&1; then
+            python3 -c "import zipfile, pathlib; zipfile.ZipFile(pathlib.Path('$PLUGIN_ARTIFACT_DIR') / 'aigdgodot.zip').extractall(pathlib.Path('$PLUGIN_EXTRACT_DIR'))"
+          elif command -v unzip >/dev/null 2>&1; then
+            unzip -q "$PLUGIN_ARTIFACT_DIR/aigdgodot.zip" -d "$PLUGIN_EXTRACT_DIR"
+          else
+            apt-get update && apt-get install -y python3
+            python3 -c "import zipfile, pathlib; zipfile.ZipFile(pathlib.Path('$PLUGIN_ARTIFACT_DIR') / 'aigdgodot.zip').extractall(pathlib.Path('$PLUGIN_EXTRACT_DIR'))"
+          fi
+
+          rm -rf "${PROJECT_PATH}/aigdgodot/bin"
+          mkdir -p "${PROJECT_PATH}/aigdgodot"
+          cp -R "$PLUGIN_EXTRACT_DIR/aigdgodot/bin" "${PROJECT_PATH}/aigdgodot/"
+          cp "$PLUGIN_EXTRACT_DIR/aigdgodot/aigdgodot.gdextension" "${PROJECT_PATH}/aigdgodot/"
+      - name: Setup
+        run: |
+          mkdir -v -p ~/.local/share/godot/export_templates/
+          mkdir -v -p ~/.config/
+          mv /root/.config/godot ~/.config/godot
+          mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+      - name: Windows Build
+        run: |
+          mkdir -v -p build/windows
+          EXPORT_DIR="$(readlink -f build)"
+          cd $PROJECT_PATH
+          godot --headless --verbose --export-release "Windows Desktop" "$EXPORT_DIR/windows/$EXPORT_NAME.exe"
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: build/windows
+
+  export-linux:
+    name: Linux Export
+    needs: build-plugin
+    runs-on: ubuntu-24.04 # Use 24.04 with godot 4
+    container:
+      image: barichello/godot-ci:4.5.1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Download GDExtension
+        uses: actions/download-artifact@v4
+        with:
+          name: finished_unzip_me
+          path: ${{ github.workspace }}/_plugin_artifact
+      - name: Install GDExtension into project
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLUGIN_ARTIFACT_DIR="${{ github.workspace }}/_plugin_artifact"
+          PLUGIN_EXTRACT_DIR="${{ github.workspace }}/_plugin_unzipped"
+          mkdir -p "$PLUGIN_EXTRACT_DIR"
+
+          if command -v python3 >/dev/null 2>&1; then
+            python3 -c "import zipfile, pathlib; zipfile.ZipFile(pathlib.Path('$PLUGIN_ARTIFACT_DIR') / 'aigdgodot.zip').extractall(pathlib.Path('$PLUGIN_EXTRACT_DIR'))"
+          elif command -v unzip >/dev/null 2>&1; then
+            unzip -q "$PLUGIN_ARTIFACT_DIR/aigdgodot.zip" -d "$PLUGIN_EXTRACT_DIR"
+          else
+            apt-get update && apt-get install -y python3
+            python3 -c "import zipfile, pathlib; zipfile.ZipFile(pathlib.Path('$PLUGIN_ARTIFACT_DIR') / 'aigdgodot.zip').extractall(pathlib.Path('$PLUGIN_EXTRACT_DIR'))"
+          fi
+
+          rm -rf "${PROJECT_PATH}/aigdgodot/bin"
+          mkdir -p "${PROJECT_PATH}/aigdgodot"
+          cp -R "$PLUGIN_EXTRACT_DIR/aigdgodot/bin" "${PROJECT_PATH}/aigdgodot/"
+          cp "$PLUGIN_EXTRACT_DIR/aigdgodot/aigdgodot.gdextension" "${PROJECT_PATH}/aigdgodot/"
+      - name: Setup
+        run: |
+          mkdir -v -p ~/.local/share/godot/export_templates/
+          mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+      - name: Linux Build
+        run: |
+          mkdir -v -p build/linux
+          EXPORT_DIR="$(readlink -f build)"
+          cd $PROJECT_PATH
+          godot --headless --verbose --export-release "Linux" "$EXPORT_DIR/linux/$EXPORT_NAME.x86_64"
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: build/linux
+
+  export-mac:
+    name: Mac Export
+    needs: build-plugin
+    runs-on: ubuntu-24.04 # Use 24.04 with godot 4
+    container:
+      image: barichello/godot-ci:4.5.1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Download GDExtension
+        uses: actions/download-artifact@v4
+        with:
+          name: finished_unzip_me
+          path: ${{ github.workspace }}/_plugin_artifact
+      - name: Install GDExtension into project
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLUGIN_ARTIFACT_DIR="${{ github.workspace }}/_plugin_artifact"
+          PLUGIN_EXTRACT_DIR="${{ github.workspace }}/_plugin_unzipped"
+          mkdir -p "$PLUGIN_EXTRACT_DIR"
+
+          if command -v python3 >/dev/null 2>&1; then
+            python3 -c "import zipfile, pathlib; zipfile.ZipFile(pathlib.Path('$PLUGIN_ARTIFACT_DIR') / 'aigdgodot.zip').extractall(pathlib.Path('$PLUGIN_EXTRACT_DIR'))"
+          elif command -v unzip >/dev/null 2>&1; then
+            unzip -q "$PLUGIN_ARTIFACT_DIR/aigdgodot.zip" -d "$PLUGIN_EXTRACT_DIR"
+          else
+            apt-get update && apt-get install -y python3
+            python3 -c "import zipfile, pathlib; zipfile.ZipFile(pathlib.Path('$PLUGIN_ARTIFACT_DIR') / 'aigdgodot.zip').extractall(pathlib.Path('$PLUGIN_EXTRACT_DIR'))"
+          fi
+
+          rm -rf "${PROJECT_PATH}/aigdgodot/bin"
+          mkdir -p "${PROJECT_PATH}/aigdgodot"
+          cp -R "$PLUGIN_EXTRACT_DIR/aigdgodot/bin" "${PROJECT_PATH}/aigdgodot/"
+          cp "$PLUGIN_EXTRACT_DIR/aigdgodot/aigdgodot.gdextension" "${PROJECT_PATH}/aigdgodot/"
+      - name: Setup
+        run: |
+          mkdir -v -p ~/.local/share/godot/export_templates/
+          mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+      - name: Mac Build
+        run: |
+          mkdir -v -p build/mac
+          EXPORT_DIR="$(readlink -f build)"
+          cd $PROJECT_PATH
+          godot --headless --verbose --export-release "macOS" "$EXPORT_DIR/mac/$EXPORT_NAME.zip"
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: build/mac

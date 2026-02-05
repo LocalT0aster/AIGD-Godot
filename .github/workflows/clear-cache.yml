@@ -1,0 +1,29 @@
+name: Clear Actions Cache
+on:
+  workflow_dispatch:
+    inputs:
+      clear_all_cache:
+        description: |
+          Clear all GitHub Actions caches in this repository.
+          This is destructive and cannot be undone.
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  actions: write
+
+jobs:
+  clear-cache:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Clear all caches
+        if: ${{ github.event.inputs.clear_all_cache == 'true' }}
+        run: |
+          echo "About to clear all caches"
+          gh cache delete --all --succeed-on-no-caches
+          echo "Clear completed"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

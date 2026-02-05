@@ -1,4 +1,4 @@
-name: Build GDExtension Cross Platform Plugin
+name: Build GDExtension Plugin
 on:
   workflow_dispatch:
     inputs:
@@ -45,15 +45,31 @@ on:
         required: false
         type: boolean
         default: true
-      clear_all_cache:
-        description: |
-          Clear All Cache: Clear all GitHub Actions caches in the repository before starting the build. Useful if caches are corrupted, outdated, or approaching the storage limit. This will delete all caches, so use with caution. This is a perfect option if you are switching to another godot-cpp branch, build profile or if you are experiencing issues with the cache.
+  workflow_call:
+    inputs:
+      build_type:
+        required: false
+        type: string
+        default: debug
+      precision:
+        required: false
+        type: string
+        default: single
+      lto:
+        required: false
+        type: string
+        default: auto
+      use_cache:
         required: false
         type: boolean
-        default: false
+        default: true
 
 env:
   PLUGIN_NAME: "aigdgodot" # Replace with your plugin name (must match .gdextension file name)
+  BUILD_TYPE: ${{ inputs.build_type }}
+  PRECISION: ${{ inputs.precision }}
+  LTO: ${{ inputs.lto }}
+  USE_CACHE: ${{ inputs.use_cache }}
 
 jobs:
   set-matrix:
@@ -65,38 +81,21 @@ jobs:
       - name: Set matrix values
         id: set-matrix
         run: |
-          if [ "${{ github.event.inputs.build_type }}" = "full_plugin_compilation" ]; then
+          if [ "${{ env.BUILD_TYPE }}" = "full_plugin_compilation" ]; then
             TARGET_TYPES='["template_debug", "template_release"]'
           else
             TARGET_TYPES='["template_debug"]'
           fi
-          if [ "${{ github.event.inputs.precision }}" = "both" ]; then
+          if [ "${{ env.PRECISION }}" = "both" ]; then
             FLOAT_PRECISIONS='["single", "double"]'
           else
-            FLOAT_PRECISIONS='["${{ github.event.inputs.precision }}"]'
+            FLOAT_PRECISIONS='["${{ env.PRECISION }}"]'
           fi
           echo "target_types=$TARGET_TYPES" >> $GITHUB_OUTPUT
           echo "float_precisions=$FLOAT_PRECISIONS" >> $GITHUB_OUTPUT
 
-  clear-cache:
-    runs-on: ubuntu-22.04
-    needs: set-matrix
-    permissions:
-      actions: write # Required to delete GitHub Actions caches
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Clear all caches
-        if: ${{ github.event.inputs.clear_all_cache == 'true' }}
-        run: |
-          echo "About to clear all caches"
-          gh cache delete --all --succeed-on-no-caches
-          echo "Clear completed"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   build:
-    needs: [set-matrix, clear-cache] # Only run after set-matrix and clear-cache jobs
+    needs: [set-matrix] # Only run after set-matrix job
     strategy:
       fail-fast: false
       matrix:
@@ -105,20 +104,20 @@ jobs:
         # See https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow
         target:
           [
-            { platform: linux, arch: x86_32, os: ubuntu-22.04 },
+            # { platform: linux, arch: x86_32, os: ubuntu-22.04 },
             { platform: linux, arch: x86_64, os: ubuntu-22.04 },
-            { platform: linux, arch: arm32, os: ubuntu-22.04-arm },
+            # { platform: linux, arch: arm32, os: ubuntu-22.04-arm },
             { platform: linux, arch: arm64, os: ubuntu-22.04-arm },
-            { platform: windows, arch: x86_32, os: windows-latest },
+            # { platform: windows, arch: x86_32, os: windows-latest },
             { platform: windows, arch: x86_64, os: windows-latest },
             { platform: windows, arch: arm64, os: windows-latest },
-            { platform: macos, arch: universal, os: macos-latest },
-            { platform: android, arch: x86_64, os: ubuntu-22.04 },
-            { platform: android, arch: arm32, os: ubuntu-22.04 },
-            { platform: android, arch: arm64, os: ubuntu-22.04 },
-            { platform: ios, arch: arm64, os: macos-latest },
-            { platform: web, arch: wasm32, os: ubuntu-22.04, threads: "no" },
-            { platform: web, arch: wasm32, os: ubuntu-22.04, threads: "yes" }
+            { platform: macos, arch: universal, os: macos-latest }
+            # { platform: android, arch: x86_64, os: ubuntu-22.04 },
+            # { platform: android, arch: arm32, os: ubuntu-22.04 },
+            # { platform: android, arch: arm64, os: ubuntu-22.04 },
+            # { platform: ios, arch: arm64, os: macos-latest },
+            # { platform: web, arch: wasm32, os: ubuntu-22.04, threads: "no" },
+            # { platform: web, arch: wasm32, os: ubuntu-22.04, threads: "yes" }
           ]
         target-type: ${{ fromJson(needs.set-matrix.outputs.target_types) }}
         float-precision: ${{ fromJson(needs.set-matrix.outputs.float_precisions) }}
@@ -136,12 +135,12 @@ jobs:
         run: |
           NAME="${{ env.PLUGIN_NAME }}.${{ matrix.target.platform }}.${{ matrix.target-type }}.${{ matrix.target.arch }}.${{ matrix.float-precision }}${{ (matrix.target.platform == 'web' && matrix.target.threads == 'yes') && '.threads' || '' }}"
           echo "build_name=$NAME" >> $GITHUB_OUTPUT
-          echo "cache_name=${NAME//./_}_${{ github.event.inputs.lto }}" >> $GITHUB_OUTPUT
+          echo "cache_name=${NAME//./_}_${{ env.LTO }}" >> $GITHUB_OUTPUT
 
-      - name: Install multilib support
-        if: ${{ matrix.target.platform == 'linux' && matrix.target.arch == 'x86_32' }}
-        run: |
-          sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib
+      # - name: Install multilib support
+      #   if: ${{ matrix.target.platform == 'linux' && matrix.target.arch == 'x86_32' }}
+      #   run: |
+      #     sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib
 
       # Setup dependencies
       - name: Setup godot-cpp
@@ -151,12 +150,12 @@ jobs:
           em-version: 3.1.62
 
       - name: Set SCONS_CACHE
-        if: ${{ github.event.inputs.use_cache == 'true' }}
+        if: ${{ env.USE_CACHE == 'true' }}
         shell: bash
         run: echo "SCONS_CACHE=${{ github.workspace }}/.scons-cache/${{ steps.set-build-name.outputs.cache_name }}" >> $GITHUB_ENV
 
       - name: Restore .scons_cache
-        if: ${{ github.event.inputs.use_cache == 'true' }}
+        if: ${{ env.USE_CACHE == 'true' }}
         uses: ./godot-cpp/.github/actions/godot-cache-restore
         with:
           scons-cache: ${{ github.workspace }}/.scons-cache/${{ steps.set-build-name.outputs.cache_name }}
@@ -171,7 +170,7 @@ jobs:
           echo "Threads setting: ${{ matrix.target.threads }}"
           echo "Target type: ${{ matrix.target-type }}"
           echo "Float precision: ${{ matrix.float-precision }}"
-          echo "LTO: ${{ github.event.inputs.lto }}"
+          echo "LTO: ${{ env.LTO }}"
           echo "==============================="
 
           THREADS_FLAG=""
@@ -180,7 +179,7 @@ jobs:
           fi
 
           LTO_FLAG=""
-          if [[ "${{ github.event.inputs.lto }}" = "auto" && "${{ matrix.target-type }}" = "template_release" ]]; then
+          if [[ "${{ env.LTO }}" = "auto" && "${{ matrix.target-type }}" = "template_release" ]]; then
             if [[ "${{ matrix.target.platform }}" = "linux" || "${{ matrix.target.platform }}" = "windows" || "${{ matrix.target.platform }}" = "macos" || "${{ matrix.target.platform }}" = "android" || "${{ matrix.target.platform }}" = "ios" ]]; then
               LTO_FLAG=" lto=auto"
             elif [[ "${{ matrix.target.platform }}" = "web" ]]; then
@@ -190,7 +189,7 @@ jobs:
                 echo "WARNING: LTO disabled for web with threads=yes due to potential Emscripten issues."
               fi
             fi
-          elif [[ "${{ github.event.inputs.lto }}" = "auto" && "${{ matrix.target-type }}" = "template_debug" ]]; then
+          elif [[ "${{ env.LTO }}" = "auto" && "${{ matrix.target-type }}" = "template_debug" ]]; then
             echo "WARNING: LTO ignored for debug builds, as it is not suitable for development."
           fi
 
@@ -202,7 +201,7 @@ jobs:
                 $LTO_FLAG
 
       - name: Save .scons_cache
-        if: ${{ github.event.inputs.use_cache == 'true' }}
+        if: ${{ env.USE_CACHE == 'true' }}
         uses: ./godot-cpp/.github/actions/godot-cache-save
         with:
           scons-cache: ${{ github.workspace }}/.scons-cache/${{ steps.set-build-name.outputs.cache_name }}
