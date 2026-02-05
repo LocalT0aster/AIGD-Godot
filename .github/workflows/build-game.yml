@@ -288,6 +288,31 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG"
 
+      - name: Package release artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release_artifacts_zips
+
+          if [ -d "release_artifacts/windows_release" ]; then
+            (cd release_artifacts && zip -r "../release_artifacts_zips/windows_release.zip" "windows_release")
+          fi
+          if [ -d "release_artifacts/windows_debug" ]; then
+            (cd release_artifacts && zip -r "../release_artifacts_zips/windows_debug.zip" "windows_debug")
+          fi
+          if [ -d "release_artifacts/linux_release" ]; then
+            (cd release_artifacts && zip -r "../release_artifacts_zips/linux_release.zip" "linux_release")
+          fi
+          if [ -d "release_artifacts/linux_debug" ]; then
+            (cd release_artifacts && zip -r "../release_artifacts_zips/linux_debug.zip" "linux_debug")
+          fi
+          if [ -d "release_artifacts/mac_release" ]; then
+            (cd release_artifacts && zip -r "../release_artifacts_zips/mac_release.zip" "mac_release")
+          fi
+          if [ -d "release_artifacts/mac_debug" ]; then
+            (cd release_artifacts && zip -r "../release_artifacts_zips/mac_debug.zip" "mac_debug")
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -295,4 +320,4 @@ jobs:
           name: ${{ steps.tag.outputs.tag }}
           generate_release_notes: true
           files: |
-            release_artifacts/**
+            release_artifacts_zips/*.zip
