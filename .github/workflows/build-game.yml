@@ -39,7 +39,6 @@ jobs:
       - name: Install GDExtension into project
         uses: ./.github/actions/install-gdextension
         with:
-          artifact_dir: ${{ github.workspace }}/_plugin_artifact
           plugin_name: aigdgodot
           project_path: ${{ env.PROJECT_PATH }}
       - name: Setup
@@ -80,7 +79,6 @@ jobs:
       - name: Install GDExtension into project
         uses: ./.github/actions/install-gdextension
         with:
-          artifact_dir: ${{ github.workspace }}/_plugin_artifact
           plugin_name: aigdgodot
           project_path: ${{ env.PROJECT_PATH }}
       - name: Setup
@@ -119,7 +117,6 @@ jobs:
       - name: Install GDExtension into project
         uses: ./.github/actions/install-gdextension
         with:
-          artifact_dir: ${{ github.workspace }}/_plugin_artifact
           plugin_name: aigdgodot
           project_path: ${{ env.PROJECT_PATH }}
       - name: Setup

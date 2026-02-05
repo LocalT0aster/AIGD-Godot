@@ -2,9 +2,9 @@ name: Install GDExtension Into Project
 description: Install a packaged GDExtension zip into the Godot project directory.
 inputs:
   artifact_dir:
-    description: Directory containing the GDExtension zip.
+    description: Directory containing the GDExtension zip. Leave empty to use $GITHUB_WORKSPACE/_plugin_artifact.
     required: false
-    default: ${{ github.workspace }}/_plugin_artifact
+    default: ""
   plugin_name:
     description: Plugin name (also zip basename and folder name).
     required: true
@@ -18,7 +18,15 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        PLUGIN_ARTIFACT_DIR="${{ inputs.artifact_dir }}"
+        ARTIFACT_DIR_INPUT="${{ inputs.artifact_dir }}"
+        if [ -n "$ARTIFACT_DIR_INPUT" ]; then
+          PLUGIN_ARTIFACT_DIR="$ARTIFACT_DIR_INPUT"
+          if [ ! -d "$PLUGIN_ARTIFACT_DIR" ] && [ -d "${GITHUB_WORKSPACE}/_plugin_artifact" ]; then
+            PLUGIN_ARTIFACT_DIR="${GITHUB_WORKSPACE}/_plugin_artifact"
+          fi
+        else
+          PLUGIN_ARTIFACT_DIR="${GITHUB_WORKSPACE}/_plugin_artifact"
+        fi
         PLUGIN_EXTRACT_DIR="${{ github.workspace }}/_plugin_unzipped"
         PLUGIN_NAME="${{ inputs.plugin_name }}"
         PROJECT_PATH="${{ inputs.project_path }}"
