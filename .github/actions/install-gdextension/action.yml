@@ -1,0 +1,53 @@
+name: Install GDExtension Into Project
+description: Install a packaged GDExtension zip into the Godot project directory.
+inputs:
+  artifact_dir:
+    description: Directory containing the GDExtension zip.
+    required: false
+    default: ${{ github.workspace }}/_plugin_artifact
+  plugin_name:
+    description: Plugin name (also zip basename and folder name).
+    required: true
+  project_path:
+    description: Godot project path where the plugin should be installed.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install GDExtension into project
+      shell: bash
+      run: |
+        set -euo pipefail
+        PLUGIN_ARTIFACT_DIR="${{ inputs.artifact_dir }}"
+        PLUGIN_EXTRACT_DIR="${{ github.workspace }}/_plugin_unzipped"
+        PLUGIN_NAME="${{ inputs.plugin_name }}"
+        PROJECT_PATH="${{ inputs.project_path }}"
+        mkdir -p "$PLUGIN_EXTRACT_DIR"
+
+        PLUGIN_ZIP="$PLUGIN_ARTIFACT_DIR/${PLUGIN_NAME}.zip"
+        if [ ! -f "$PLUGIN_ZIP" ]; then
+          echo "ERROR: ${PLUGIN_NAME}.zip not found at $PLUGIN_ZIP"
+          ls -R "$PLUGIN_ARTIFACT_DIR"
+          exit 1
+        fi
+
+        if command -v python3 >/dev/null 2>&1; then
+          PLUGIN_ZIP="$PLUGIN_ZIP" PLUGIN_EXTRACT_DIR="$PLUGIN_EXTRACT_DIR" python3 -c "import os, zipfile, pathlib; zipfile.ZipFile(pathlib.Path(os.environ['PLUGIN_ZIP'])).extractall(pathlib.Path(os.environ['PLUGIN_EXTRACT_DIR']))"
+        elif command -v unzip >/dev/null 2>&1; then
+          unzip -q "$PLUGIN_ZIP" -d "$PLUGIN_EXTRACT_DIR"
+        else
+          apt-get update && apt-get install -y python3
+          PLUGIN_ZIP="$PLUGIN_ZIP" PLUGIN_EXTRACT_DIR="$PLUGIN_EXTRACT_DIR" python3 -c "import os, zipfile, pathlib; zipfile.ZipFile(pathlib.Path(os.environ['PLUGIN_ZIP'])).extractall(pathlib.Path(os.environ['PLUGIN_EXTRACT_DIR']))"
+        fi
+
+        PLUGIN_SRC_DIR="$PLUGIN_EXTRACT_DIR/$PLUGIN_NAME"
+        if [ ! -d "$PLUGIN_SRC_DIR" ]; then
+          echo "ERROR: $PLUGIN_NAME folder not found under $PLUGIN_EXTRACT_DIR"
+          ls -R "$PLUGIN_EXTRACT_DIR"
+          exit 1
+        fi
+
+        rm -rf "$PROJECT_PATH/$PLUGIN_NAME/bin"
+        mkdir -p "$PROJECT_PATH/$PLUGIN_NAME"
+        cp -R "$PLUGIN_SRC_DIR/bin" "$PROJECT_PATH/$PLUGIN_NAME/"
+        cp "$PLUGIN_SRC_DIR/$PLUGIN_NAME.gdextension" "$PROJECT_PATH/$PLUGIN_NAME/"

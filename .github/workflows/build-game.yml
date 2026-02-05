@@ -35,27 +35,13 @@ jobs:
         with:
           name: finished_unzip_me
           path: ${{ github.workspace }}/_plugin_artifact
+          merge-multiple: true
       - name: Install GDExtension into project
-        shell: bash
-        run: |
-          set -euo pipefail
-          PLUGIN_ARTIFACT_DIR="${{ github.workspace }}/_plugin_artifact"
-          PLUGIN_EXTRACT_DIR="${{ github.workspace }}/_plugin_unzipped"
-          mkdir -p "$PLUGIN_EXTRACT_DIR"
-
-          if command -v python3 >/dev/null 2>&1; then
-            python3 -c "import zipfile, pathlib; zipfile.ZipFile(pathlib.Path('$PLUGIN_ARTIFACT_DIR') / 'aigdgodot.zip').extractall(pathlib.Path('$PLUGIN_EXTRACT_DIR'))"
-          elif command -v unzip >/dev/null 2>&1; then
-            unzip -q "$PLUGIN_ARTIFACT_DIR/aigdgodot.zip" -d "$PLUGIN_EXTRACT_DIR"
-          else
-            apt-get update && apt-get install -y python3
-            python3 -c "import zipfile, pathlib; zipfile.ZipFile(pathlib.Path('$PLUGIN_ARTIFACT_DIR') / 'aigdgodot.zip').extractall(pathlib.Path('$PLUGIN_EXTRACT_DIR'))"
-          fi
-
-          rm -rf "${PROJECT_PATH}/aigdgodot/bin"
-          mkdir -p "${PROJECT_PATH}/aigdgodot"
-          cp -R "$PLUGIN_EXTRACT_DIR/aigdgodot/bin" "${PROJECT_PATH}/aigdgodot/"
-          cp "$PLUGIN_EXTRACT_DIR/aigdgodot/aigdgodot.gdextension" "${PROJECT_PATH}/aigdgodot/"
+        uses: ./.github/actions/install-gdextension
+        with:
+          artifact_dir: ${{ github.workspace }}/_plugin_artifact
+          plugin_name: aigdgodot
+          project_path: ${{ env.PROJECT_PATH }}
       - name: Setup
         run: |
           mkdir -v -p ~/.local/share/godot/export_templates/
@@ -90,27 +76,13 @@ jobs:
         with:
           name: finished_unzip_me
           path: ${{ github.workspace }}/_plugin_artifact
+          merge-multiple: true
       - name: Install GDExtension into project
-        shell: bash
-        run: |
-          set -euo pipefail
-          PLUGIN_ARTIFACT_DIR="${{ github.workspace }}/_plugin_artifact"
-          PLUGIN_EXTRACT_DIR="${{ github.workspace }}/_plugin_unzipped"
-          mkdir -p "$PLUGIN_EXTRACT_DIR"
-
-          if command -v python3 >/dev/null 2>&1; then
-            python3 -c "import zipfile, pathlib; zipfile.ZipFile(pathlib.Path('$PLUGIN_ARTIFACT_DIR') / 'aigdgodot.zip').extractall(pathlib.Path('$PLUGIN_EXTRACT_DIR'))"
-          elif command -v unzip >/dev/null 2>&1; then
-            unzip -q "$PLUGIN_ARTIFACT_DIR/aigdgodot.zip" -d "$PLUGIN_EXTRACT_DIR"
-          else
-            apt-get update && apt-get install -y python3
-            python3 -c "import zipfile, pathlib; zipfile.ZipFile(pathlib.Path('$PLUGIN_ARTIFACT_DIR') / 'aigdgodot.zip').extractall(pathlib.Path('$PLUGIN_EXTRACT_DIR'))"
-          fi
-
-          rm -rf "${PROJECT_PATH}/aigdgodot/bin"
-          mkdir -p "${PROJECT_PATH}/aigdgodot"
-          cp -R "$PLUGIN_EXTRACT_DIR/aigdgodot/bin" "${PROJECT_PATH}/aigdgodot/"
-          cp "$PLUGIN_EXTRACT_DIR/aigdgodot/aigdgodot.gdextension" "${PROJECT_PATH}/aigdgodot/"
+        uses: ./.github/actions/install-gdextension
+        with:
+          artifact_dir: ${{ github.workspace }}/_plugin_artifact
+          plugin_name: aigdgodot
+          project_path: ${{ env.PROJECT_PATH }}
       - name: Setup
         run: |
           mkdir -v -p ~/.local/share/godot/export_templates/
@@ -143,27 +115,13 @@ jobs:
         with:
           name: finished_unzip_me
           path: ${{ github.workspace }}/_plugin_artifact
+          merge-multiple: true
       - name: Install GDExtension into project
-        shell: bash
-        run: |
-          set -euo pipefail
-          PLUGIN_ARTIFACT_DIR="${{ github.workspace }}/_plugin_artifact"
-          PLUGIN_EXTRACT_DIR="${{ github.workspace }}/_plugin_unzipped"
-          mkdir -p "$PLUGIN_EXTRACT_DIR"
-
-          if command -v python3 >/dev/null 2>&1; then
-            python3 -c "import zipfile, pathlib; zipfile.ZipFile(pathlib.Path('$PLUGIN_ARTIFACT_DIR') / 'aigdgodot.zip').extractall(pathlib.Path('$PLUGIN_EXTRACT_DIR'))"
-          elif command -v unzip >/dev/null 2>&1; then
-            unzip -q "$PLUGIN_ARTIFACT_DIR/aigdgodot.zip" -d "$PLUGIN_EXTRACT_DIR"
-          else
-            apt-get update && apt-get install -y python3
-            python3 -c "import zipfile, pathlib; zipfile.ZipFile(pathlib.Path('$PLUGIN_ARTIFACT_DIR') / 'aigdgodot.zip').extractall(pathlib.Path('$PLUGIN_EXTRACT_DIR'))"
-          fi
-
-          rm -rf "${PROJECT_PATH}/aigdgodot/bin"
-          mkdir -p "${PROJECT_PATH}/aigdgodot"
-          cp -R "$PLUGIN_EXTRACT_DIR/aigdgodot/bin" "${PROJECT_PATH}/aigdgodot/"
-          cp "$PLUGIN_EXTRACT_DIR/aigdgodot/aigdgodot.gdextension" "${PROJECT_PATH}/aigdgodot/"
+        uses: ./.github/actions/install-gdextension
+        with:
+          artifact_dir: ${{ github.workspace }}/_plugin_artifact
+          plugin_name: aigdgodot
+          project_path: ${{ env.PROJECT_PATH }}
       - name: Setup
         run: |
           mkdir -v -p ~/.local/share/godot/export_templates/
