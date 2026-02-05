@@ -5,14 +5,16 @@ on:
       build_type:
         description: |
           Select build type:
+          - release_only: Compiles only release builds used for exported games (fastest).
           - debug: Compiles debug builds that are loaded by the Godot editor, only used for development and testing. By using this option you can check whether your plugin works correctly for all operating systems and architectures.
           - full_plugin_compilation: Compiles debug builds as well as release builds that are the final builds. Enables developers to use your plugin both in the editor and also in their final exported game.
         required: true
         type: choice
         options:
+          - release_only
           - debug
           - full_plugin_compilation
-        default: debug
+        default: release_only
       precision:
         description: |
           Select float precision for floating-point calculations in the GDExtension:
@@ -50,7 +52,7 @@ on:
       build_type:
         required: false
         type: string
-        default: debug
+        default: release_only
       precision:
         required: false
         type: string
@@ -83,6 +85,8 @@ jobs:
         run: |
           if [ "${{ env.BUILD_TYPE }}" = "full_plugin_compilation" ]; then
             TARGET_TYPES='["template_debug", "template_release"]'
+          elif [ "${{ env.BUILD_TYPE }}" = "release_only" ]; then
+            TARGET_TYPES='["template_release"]'
           else
             TARGET_TYPES='["template_debug"]'
           fi

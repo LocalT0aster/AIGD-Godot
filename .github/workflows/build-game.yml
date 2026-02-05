@@ -13,7 +13,7 @@ jobs:
     name: Build GDExtension
     uses: ./.github/workflows/build-plugin.yml
     with:
-      build_type: debug
+      build_type: release_only
       precision: single
       lto: auto
       use_cache: true
