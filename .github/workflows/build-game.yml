@@ -68,7 +68,7 @@ jobs:
       build_type: ${{ github.event.inputs.build_type }}
       precision: ${{ github.event.inputs.precision }}
       lto: ${{ github.event.inputs.lto }}
-      use_cache: ${{ github.event.inputs.use_cache }}
+      use_cache: ${{ github.event.inputs.use_cache == 'true' }}
     secrets: inherit
 
   export-windows:
